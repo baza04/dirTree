@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -13,6 +12,15 @@ var (
 	isF  bool
 	path string
 )
+
+type stats struct {
+	isDir   bool
+	isLast  bool
+	size    int
+	name    string
+	indent  string
+	curPath string
+}
 
 func main() {
 	readArgs()
@@ -50,6 +58,14 @@ func ReadDir(path string) {
 
 func PrintC(content []os.FileInfo, curPath string) {
 	for index, object := range content {
+		// st:= stats{
+		// 	isDir: object.IsDir(),
+		// 	isLast: index == len(content)-1
+		// 	name: object.Name(),
+		// 	curPath: curPath + "/" + object.Name(),
+		// 	indent:
+
+		// }
 		isLast := index == len(content)-1
 		if object.IsDir() {
 			// fmt.Println("├───", object.Name())
@@ -71,7 +87,7 @@ func PrintFile(curPath string, object os.FileInfo, isLast bool) {
 	}
 	data := object.Name()
 	if !object.IsDir() {
-		data += "(" + strconv.Itoa(object.Size()) + "b)"
+		data += fmt.Sprintf("(%db)", object.Size())
 	}
 	if curPath != path {
 		fmt.Printf("%s%s%s\n", indent, pref, data)
