@@ -2,110 +2,97 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
-	"log"
 	"os"
-	"strings"
-)
-
-var (
-	isF  bool
-	path string
 )
 
 type stats struct {
 	isDir   bool
 	isLast  bool
-	size    int
+	size    int64
 	name    string
 	indent  string
 	curPath string
 }
 
 func main() {
-	readArgs()
-	fmt.Printf("path: '%s', -f: %v\n", path, isF)
-	dirTree()
-}
-
-func readArgs() {
-	path = "."
-	for index, arg := range os.Args[1:] {
-		if index == 0 {
-			path = arg
-		}
-		if index > 0 && arg == "-f" {
-			isF = true
-			return
-		}
+	out := os.Stdout
+	if !(len(os.Args) == 2 || len(os.Args) == 3) {
+		panic("usage go run main.go . [-f]")
+	}
+	path := os.Args[1]
+	printFiles := len(os.Args) == 3 && os.Args[2] == "-f"
+	err := dirTree(out, path, printFiles)
+	if err != nil {
+		panic(err.Error())
 	}
 }
 
-func dirTree() {
-	// child := "├───"
+func dirTree(out io.Writer, path string, printFiles bool) error {
 
-	ReadDir(path)
-
-}
-
-func ReadDir(path string) {
 	content, err := ioutil.ReadDir(path)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	PrintC(content, path)
-}
 
-func PrintC(content []os.FileInfo, curPath string) {
 	for index, object := range content {
-		// st:= stats{
-		// 	isDir: object.IsDir(),
-		// 	isLast: index == len(content)-1
-		// 	name: object.Name(),
-		// 	curPath: curPath + "/" + object.Name(),
-		// 	indent:
+		stat := stats{ // fill stats
+			isDir:   object.IsDir(),
+			isLast:  index == len(content)-1,
+			curPath: path + "/" + object.Name(),
+			size:    object.Size(),
+			name:    object.Name(),
+		}
 
-		// }
-		isLast := index == len(content)-1
-		if object.IsDir() {
-			// fmt.Println("├───", object.Name())
-			PrintFile(curPath, object, isLast)
-			// curPath + "/" + object.Name()
-			ReadDir(curPath + "/" + object.Name())
-		} else {
-			PrintFile(curPath, object, isLast)
+		PrintFile(out, path, printFiles, stat)
+		if stat.isDir {
+			if err := dirTree(out, stat.curPath, printFiles); err != nil {
+				panic(err.Error())
+			}
 		}
 	}
-
+	return nil
 }
 
-func PrintFile(curPath string, object os.FileInfo, isLast bool) {
-	pref := "├───"
-	indent := countIndent(curPath, object.IsDir())
-	if isLast {
-		pref = "└───"
-	}
-	data := object.Name()
-	if !object.IsDir() {
-		data += fmt.Sprintf("(%db)", object.Size())
-	}
-	if curPath != path {
-		fmt.Printf("%s%s%s\n", indent, pref, data)
+func PrintFile(out io.Writer, path string, printFiles bool, stat stats) {
+	pref := stat.getPreffix()
+	indent := ""
+	// indent := countIndent(stat.curPath, stat.isDir, stat.isLast)
+	info := stat.getNameAndSize()
+
+	if stat.curPath != path {
+		fmt.Fprintf(out, "%s%s%s\n", indent, pref, info)
 	} else {
-		fmt.Printf("%s%s\n", pref, data)
+		fmt.Fprintf(out, "%s%s\n", pref, info)
 	}
 }
 
-func countIndent(curPath string, isDir bool) (indent string) {
-	curPath = strings.Replace(curPath, path, "", 1)
-	for _, char := range curPath {
-		if char == '/' {
-			indent += "  "
-		}
+func (s stats) getPreffix() string {
+	if s.isLast {
+		return "└───"
 	}
-
-	if indent != "" && !isDir {
-		indent = "  │" + indent[2:]
-	}
-	return
+	return "├───"
 }
+
+func (s stats) getNameAndSize() string {
+	if s.isDir {
+		return s.name
+	}
+	if s.size != 0 {
+		return fmt.Sprintf("%s (%db)", s.name, s.size)
+	}
+	return fmt.Sprintf("%s (empty)", s.name)
+}
+
+// func countIndent(curPath string, isDir, isLast bool) (indent string) {
+// 	// curPath = strings.Replace(curPath, path, "", 1)
+// 	for _, char := range curPath {
+// 		if char == '/' {
+// 			indent += "  "
+// 			if /* !isDir && */ !isLast {
+// 			}
+// 		}
+// 	}
+// 	return
+// }

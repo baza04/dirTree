@@ -1,0 +1,39 @@
+find is object last in directory:
+   	s.isLast = index == len(content)-1
+
+update current path:
+		// curPath = curPath + "/" + object.Name()
+
+call read dir with correct curPath:
+			// ReadDir(s.curPath + "/" + object.Name())
+
+stable call PrintFile():
+	// stat.PrintFile(stat.curPath, object, stat.isLast)
+
+// after optimization
+		// if stat.isDir {
+		// stat.PrintFile()
+		// ReadDir(stat.curPath)
+		// } else {
+
+// old version
+
+func dirTree(out os.File, path string, printFiles bool) {
+	p := parameters{
+		out:  out,
+		path: path,
+		isF:  printFiles,
+	}
+	ReadDir(path)
+}
+
+func ReadDir(path string) {
+	content, err := ioutil.ReadDir(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	st := stats{
+		curPath: path,
+	}
+	st.PrintC(content)
+}
