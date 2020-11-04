@@ -1,1 +1,1 @@
-alert("Hello stat files")
+var a = 3;

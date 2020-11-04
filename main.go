@@ -7,15 +7,6 @@ import (
 	"os"
 )
 
-type stats struct {
-	isDir   bool
-	isLast  bool
-	size    int64
-	name    string
-	indent  string
-	curPath string
-}
-
 func main() {
 	out := os.Stdout
 	if !(len(os.Args) == 2 || len(os.Args) == 3) {
@@ -29,30 +20,58 @@ func main() {
 	}
 }
 
-func dirTree(out io.Writer, path string, printFiles bool) error {
+type parameters struct {
+	isF       bool
+	startPath string
+	out       io.Writer
+}
 
+type stats struct {
+	isDir   bool
+	isLast  bool
+	size    int64
+	name    string
+	indent  string
+	curPath string
+}
+
+func dirTree(out io.Writer, path string, printFiles bool) error {
+	p := parameters{
+		isF:       printFiles,
+		out:       out,
+		startPath: path,
+	}
+
+	return p.getInfo(p.startPath, stats{isLast: true})
+}
+
+func (p *parameters) getInfo(path string, parent stats) error {
 	content, err := ioutil.ReadDir(path)
 	if err != nil {
 		return err
 	}
 
-	if !printFiles {
+	if !p.isF {
 		content = removeFiles(content)
 	}
+
+	indent := getIndent(parent.isLast, parent.indent)
 
 	for index, object := range content {
 		stat := stats{ // fill stats
 			isDir:   object.IsDir(),
 			isLast:  index == len(content)-1,
-			curPath: path + "/" + object.Name(),
 			size:    object.Size(),
+			curPath: path + "/" + object.Name(),
 			name:    object.Name(),
+			indent:  indent,
 		}
+		// fmt.Println("getInfo:", stat.curPath, p.startPath)
 
-		stat.PrintFile(out, path, printFiles)
+		p.PrintFile(stat)
 		if stat.isDir {
-			if err := dirTree(out, stat.curPath, printFiles); err != nil {
-				panic(err.Error())
+			if err := p.getInfo(stat.curPath, stat); err != nil {
+				return err
 			}
 		}
 	}
@@ -68,16 +87,23 @@ func removeFiles(allContent []os.FileInfo) (onlyDirs []os.FileInfo) {
 	return
 }
 
-func (stat *stats) PrintFile(out io.Writer, path string, printFiles bool) {
+func getIndent(isLast bool, indent string) string {
+	if !isLast {
+		indent += "|"
+	}
+	return indent + "\t"
+}
+
+func (p *parameters) PrintFile(stat stats) {
+	indent := stat.indent
+	// indent := stat.countIndent(p.startPath)
 	pref := stat.getPreffix()
-	indent := ""
-	// indent := countIndent(stat.curPath, stat.isDir, stat.isLast)
 	info := stat.getNameAndSize()
 
-	if stat.curPath != path {
-		fmt.Fprintf(out, "%s%s%s\n", indent, pref, info)
+	if stat.curPath != p.startPath {
+		fmt.Fprintf(p.out, "%s%s%s\n", indent, pref, info)
 	} else {
-		fmt.Fprintf(out, "%s%s\n", pref, info)
+		fmt.Fprintf(p.out, "%s%s\n", pref, info)
 	}
 }
 
@@ -97,15 +123,3 @@ func (s stats) getNameAndSize() string {
 	}
 	return fmt.Sprintf("%s (empty)", s.name)
 }
-
-// func countIndent(curPath string, isDir, isLast bool) (indent string) {
-// 	// curPath = strings.Replace(curPath, path, "", 1)
-// 	for _, char := range curPath {
-// 		if char == '/' {
-// 			indent += "  "
-// 			if /* !isDir && */ !isLast {
-// 			}
-// 		}
-// 	}
-// 	return
-// }
