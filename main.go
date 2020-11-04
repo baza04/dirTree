@@ -36,6 +36,10 @@ func dirTree(out io.Writer, path string, printFiles bool) error {
 		return err
 	}
 
+	if !printFiles {
+		content = removeFiles(content)
+	}
+
 	for index, object := range content {
 		stat := stats{ // fill stats
 			isDir:   object.IsDir(),
@@ -45,7 +49,7 @@ func dirTree(out io.Writer, path string, printFiles bool) error {
 			name:    object.Name(),
 		}
 
-		PrintFile(out, path, printFiles, stat)
+		stat.PrintFile(out, path, printFiles)
 		if stat.isDir {
 			if err := dirTree(out, stat.curPath, printFiles); err != nil {
 				panic(err.Error())
@@ -55,7 +59,16 @@ func dirTree(out io.Writer, path string, printFiles bool) error {
 	return nil
 }
 
-func PrintFile(out io.Writer, path string, printFiles bool, stat stats) {
+func removeFiles(allContent []os.FileInfo) (onlyDirs []os.FileInfo) {
+	for _, object := range allContent {
+		if object.IsDir() {
+			onlyDirs = append(onlyDirs, object)
+		}
+	}
+	return
+}
+
+func (stat *stats) PrintFile(out io.Writer, path string, printFiles bool) {
 	pref := stat.getPreffix()
 	indent := ""
 	// indent := countIndent(stat.curPath, stat.isDir, stat.isLast)
