@@ -55,7 +55,7 @@ func (p *parameters) getInfo(path string, parent stats) error {
 		content = removeFiles(content)
 	}
 
-	indent := getIndent(parent.isLast, parent.indent)
+	indent := p.getIndent(parent)
 
 	for index, object := range content {
 		stat := stats{ // fill stats
@@ -66,7 +66,6 @@ func (p *parameters) getInfo(path string, parent stats) error {
 			name:    object.Name(),
 			indent:  indent,
 		}
-		// fmt.Println("getInfo:", stat.curPath, p.startPath)
 
 		p.PrintFile(stat)
 		if stat.isDir {
@@ -87,16 +86,18 @@ func removeFiles(allContent []os.FileInfo) (onlyDirs []os.FileInfo) {
 	return
 }
 
-func getIndent(isLast bool, indent string) string {
-	if !isLast {
-		indent += "|"
+func (p parameters) getIndent(parent stats) string {
+	if "" == parent.curPath {
+		return ""
 	}
-	return indent + "\t"
+	if !parent.isLast {
+		parent.indent += "│"
+	}
+	return parent.indent + "\t"
 }
 
 func (p *parameters) PrintFile(stat stats) {
 	indent := stat.indent
-	// indent := stat.countIndent(p.startPath)
 	pref := stat.getPreffix()
 	info := stat.getNameAndSize()
 
